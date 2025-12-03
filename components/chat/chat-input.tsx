@@ -69,11 +69,11 @@ export function ChatInput({ onSend, isLoading, disabled }: ChatInputProps) {
         >
           <div
             className={cn(
-              'flex items-end gap-3 rounded-2xl border-2 glass p-3 transition-all-200',
+              'flex items-end gap-3 rounded-2xl border backdrop-blur-sm p-3 transition-all-200',
               isFocused
-                ? 'border-primary-400/50 shadow-lg shadow-primary-500/10'
-                : 'border-neutral-200/50 dark:border-neutral-700/50',
-              'hover:border-neutral-300/50 dark:hover:border-neutral-600/50'
+                ? 'border-primary-500/50 bg-neutral-800/30 shadow-lg shadow-primary-500/20'
+                : 'border-neutral-700/50 bg-neutral-900/40',
+              'hover:border-neutral-600/50 hover:bg-neutral-800/50'
             )}
           >
             {/* Textarea */}
@@ -94,10 +94,10 @@ export function ChatInput({ onSend, isLoading, disabled }: ChatInputProps) {
                 rows={1}
                 className={cn(
                   'max-h-[200px] min-h-[44px] w-full resize-none bg-transparent px-0 py-2.5 text-base outline-none transition-all-200',
-                  'placeholder:text-neutral-400 dark:placeholder:text-neutral-500',
+                  'placeholder:text-neutral-500',
                   'disabled:cursor-not-allowed disabled:opacity-50',
                   'leading-relaxed',
-                  message.length > 0 && 'text-neutral-800 dark:text-neutral-100'
+                  'text-neutral-100'
                 )}
               />
 
@@ -106,7 +106,7 @@ export function ChatInput({ onSend, isLoading, disabled }: ChatInputProps) {
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="absolute bottom-1 right-1 text-[10px] text-neutral-400"
+                  className="absolute bottom-1 right-1 text-[10px] text-neutral-500"
                 >
                   {characterCount}/{maxCharacters}
                 </motion.div>

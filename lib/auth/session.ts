@@ -14,21 +14,26 @@ export async function createSession(payload: Omit<SessionPayload, 'expiresAt'>):
     .setExpirationTime('7d')
     .sign(encodedKey);
 
-  const cookieStore = await cookies();
-  cookieStore.set('session', token, {
-    httpOnly: true,
-    secure: true, // Must be true when using sameSite: 'none'
-    sameSite: 'none', // Allow cross-site requests (required for ALB with different DNS)
-    expires: expiresAt,
-    path: '/',
-  });
-
   return token;
 }
 
 export async function verifySession(): Promise<SessionPayload | null> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('session')?.value;
+  // Try Authorization header first (modern approach)
+  const { headers } = await import('next/headers');
+  const headersList = await headers();
+  const authHeader = headersList.get('authorization');
+  
+  let token: string | undefined;
+  
+  if (authHeader?.startsWith('Bearer ')) {
+    token = authHeader.substring(7);
+  }
+  
+  // Fallback to cookie for backwards compatibility
+  if (!token) {
+    const cookieStore = await cookies();
+    token = cookieStore.get('session')?.value;
+  }
 
   if (!token) return null;
 
@@ -44,6 +49,8 @@ export async function verifySession(): Promise<SessionPayload | null> {
 }
 
 export async function deleteSession(): Promise<void> {
+  // Client will remove token from localStorage
+  // Clear cookie if it exists for backwards compatibility
   const cookieStore = await cookies();
   cookieStore.delete('session');
 }

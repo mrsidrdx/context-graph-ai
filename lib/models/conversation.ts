@@ -11,6 +11,12 @@ export interface IMessage {
     projectCount: number;
   };
   contextGraph?: any; // Store the full context graph for assistant messages
+  enrichedContext?: {
+    keyInsights: string[];
+    missingInformation: string[];
+    recommendedDepth: 1 | 2 | 3;
+    relevantNodes: any[];
+  };
 }
 
 export interface IConversation extends Document {
@@ -33,6 +39,12 @@ const MessageSchema = new Schema<IMessage>({
     projectCount: { type: Number },
   },
   contextGraph: { type: Schema.Types.Mixed },
+  enrichedContext: {
+    keyInsights: [{ type: String }],
+    missingInformation: [{ type: String }],
+    recommendedDepth: { type: Number, enum: [1, 2, 3] },
+    relevantNodes: [{ type: Schema.Types.Mixed }],
+  },
 });
 
 const ConversationSchema = new Schema<IConversation>(

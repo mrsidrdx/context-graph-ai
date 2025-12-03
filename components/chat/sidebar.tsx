@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useChatStore } from '@/lib/stores/chat';
 import { useAuthStore } from '@/lib/stores/auth';
+import { authenticatedFetch } from '@/lib/auth/token';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils/cn';
@@ -36,9 +37,7 @@ export function ChatSidebar() {
   const fetchConversations = useCallback(async () => {
     if (!user) return;
     try {
-      const response = await fetch('/api/conversations', {
-        credentials: 'include', // Ensure cookies are sent with cross-origin requests
-      });
+      const response = await authenticatedFetch('/api/conversations');
       if (response.ok) {
         const data = await response.json();
         setConversations(data.conversations.sort((a: ConversationSummary, b: ConversationSummary) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()));
@@ -72,9 +71,8 @@ export function ChatSidebar() {
     if (!confirmed) return;
     
     try {
-      const response = await fetch(`/api/conversations/${id}`, {
+      const response = await authenticatedFetch(`/api/conversations/${id}`, {
         method: 'DELETE',
-        credentials: 'include', // Ensure cookies are sent with cross-origin requests
       });
       if (response.ok) {
         fetchConversations();
@@ -92,9 +90,8 @@ export function ChatSidebar() {
 
   const handleDownloadTemplate = async () => {
     try {
-      const response = await fetch('/api/seed/templates', {
+      const response = await authenticatedFetch('/api/seed/templates', {
         method: 'POST',
-        credentials: 'include', // Ensure cookies are sent with cross-origin requests
       });
       if (response.ok) {
         const data = await response.json();
@@ -119,10 +116,9 @@ export function ChatSidebar() {
       const text = await file.text();
       const data = JSON.parse(text);
 
-      const response = await fetch('/api/seed', {
+      const response = await authenticatedFetch('/api/seed', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', // Ensure cookies are sent with cross-origin requests
         body: JSON.stringify(data),
       });
 
@@ -149,19 +145,19 @@ export function ChatSidebar() {
             animate={{ width: 320, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            className="h-full glass-card border-r border-neutral-200/30 dark:border-neutral-700/30 flex flex-col overflow-hidden md:relative absolute inset-y-0 left-0 z-50 md:z-auto"
+            className="h-full border-r border-neutral-800/50 bg-neutral-900/40 backdrop-blur-xl flex flex-col overflow-hidden md:relative absolute inset-y-0 left-0 z-50 md:z-auto"
           >
             {/* Header */}
-            <div className="p-4 border-b border-neutral-200/30 dark:border-neutral-700/30">
+            <div className="p-4 border-b border-neutral-800/50">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <div className="relative">
-                    <Sparkles className="h-5 w-5 text-accent-500" />
+                    <Sparkles className="h-5 w-5 text-accent-400" />
                     {isStreaming && (
                       <div className="absolute -top-1 -right-1 h-2 w-2 bg-green-500 rounded-full animate-pulse" />
                     )}
                   </div>
-                  <span className="font-semibold text-neutral-800 dark:text-neutral-100 text-sm">
+                  <span className="font-semibold text-neutral-100 text-sm">
                     {isStreaming ? 'Thinking...' : 'Chats'}
                   </span>
                 </div>
@@ -169,42 +165,39 @@ export function ChatSidebar() {
                   variant="ghost"
                   size="sm"
                   onClick={toggleSidebar}
-                  className="h-8 w-8 p-0 hover:bg-neutral-200/50 dark:hover:bg-neutral-700/50 transition-all-200"
+                  className="h-8 w-8 p-0 hover:bg-neutral-700/50 transition-all-200 text-neutral-400 hover:text-neutral-200"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
               </div>
 
-              <motion.div
+              <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  useChatStore.setState({
+                    messages: [],
+                    currentConversationId: null,
+                    context: null,
+                    enrichedContext: null,
+                  });
+                  router.push('/');
+                }}
+                disabled={isStreaming}
+                className="w-full py-2.5 px-4 rounded-lg gap-2 bg-white hover:bg-neutral-100 active:bg-neutral-200 shadow-lg hover:shadow-xl transition-all-200 cursor-pointer flex items-center justify-center text-neutral-900 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Button
-                  onClick={() => {
-                    useChatStore.setState({
-                      messages: [],
-                      currentConversationId: null,
-                      context: null,
-                      enrichedContext: null,
-                    });
-                    router.push('/');
-                  }}
-                  className="w-full gap-2 bg-linear-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 shadow-lg hover:shadow-xl transition-all-200 cursor-pointer"
-                  disabled={isStreaming}
-                >
-                  {isStreaming ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="h-4 w-4" />
-                      New Chat
-                    </>
-                  )}
-                </Button>
-              </motion.div>
+                {isStreaming ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4" />
+                    New Chat
+                  </>
+                )}
+              </motion.button>
             </div>
 
             {/* Conversations List */}

@@ -3,23 +3,30 @@ import { nanoid } from 'nanoid';
 import { seedDataSchema } from '@/lib/validations';
 import { verifySession } from '@/lib/auth/session';
 import { getSession } from '@/lib/db/neo4j';
+import { handleOptions, addCorsHeaders } from '@/lib/cors';
+
+export async function OPTIONS() {
+  return handleOptions();
+}
 
 export async function POST(request: NextRequest) {
   try {
     const session = await verifySession();
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      const response = NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return addCorsHeaders(response);
     }
 
     const body = await request.json();
-    
+
     const validationResult = seedDataSchema.safeParse(body);
 
     if (!validationResult.success) {
-      return NextResponse.json(
+      const response = NextResponse.json(
         { error: 'Validation failed', details: validationResult.error.issues },
         { status: 400 }
       );
+      return addCorsHeaders(response);
     }
 
     const seedData = validationResult.data;
@@ -203,7 +210,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      return NextResponse.json(
+      const response = NextResponse.json(
         {
           success: true,
           created: stats,
@@ -211,11 +218,13 @@ export async function POST(request: NextRequest) {
         },
         { status: 201 }
       );
+      return addCorsHeaders(response);
     } finally {
       await neo4jSession.close();
     }
   } catch (error) {
     console.error('Seed API error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const response = NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return addCorsHeaders(response);
   }
 }

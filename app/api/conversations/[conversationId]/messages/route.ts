@@ -3,6 +3,11 @@ import { nanoid } from 'nanoid';
 import { verifySession } from '@/lib/auth/session';
 import { connectToDatabase } from '@/lib/db/mongodb';
 import { Conversation, IMessage } from '@/lib/models/conversation';
+import { handleOptions, addCorsHeaders } from '@/lib/cors';
+
+export async function OPTIONS() {
+  return handleOptions();
+}
 
 export async function POST(
   request: NextRequest,
@@ -11,7 +16,7 @@ export async function POST(
   try {
     const session = await verifySession();
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return addCorsHeaders(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
     }
 
     const { conversationId } = await params;
@@ -19,7 +24,7 @@ export async function POST(
     const { role, content, contextUsed } = body;
 
     if (!role || !content) {
-      return NextResponse.json({ error: 'Role and content are required' }, { status: 400 });
+      return addCorsHeaders(NextResponse.json({ error: 'Role and content are required' }, { status: 400 }));
     }
 
     await connectToDatabase();
@@ -42,7 +47,7 @@ export async function POST(
     );
 
     if (!conversation) {
-      return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
+      return addCorsHeaders(NextResponse.json({ error: 'Conversation not found' }, { status: 404 }));
     }
 
     // Auto-update title from first user message
@@ -54,9 +59,9 @@ export async function POST(
       );
     }
 
-    return NextResponse.json({ message }, { status: 201 });
+    return addCorsHeaders(NextResponse.json({ message }, { status: 201 }));
   } catch (error) {
     console.error('Add message error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return addCorsHeaders(NextResponse.json({ error: 'Internal server error' }, { status: 500 }));
   }
 }

@@ -23,11 +23,11 @@ interface ChatState {
   conversations: ConversationSummary[];
   sidebarOpen: boolean;
   addMessage: (message: Message) => void;
-  updateLastMessage: (content: string, contextGraph?: GraphContext) => void;
+  updateLastMessage: (content: string, contextGraph?: GraphContext, contextUsed?: { documentCount: number; topicCount: number; projectCount: number }, enrichedContext?: EnrichedContext) => void;
   setStreaming: (streaming: boolean) => void;
   setStreamContent: (content: string) => void;
   appendStreamContent: (content: string) => void;
-  setContext: (context: GraphContext) => void;
+  setContext: (context: GraphContext | null) => void;
   setEnrichedContext: (enriched: EnrichedContext | null) => void;
   toggleContextPanel: () => void;
   toggleSidebar: () => void;
@@ -53,7 +53,7 @@ export const useChatStore = create<ChatState>()(
       sidebarOpen: true,
       addMessage: (message) =>
         set((state) => ({ messages: [...state.messages, message] })),
-      updateLastMessage: (content, contextGraph) =>
+      updateLastMessage: (content, contextGraph, contextUsed, enrichedContext) =>
         set((state) => {
           const messages = [...state.messages];
           if (messages.length > 0) {
@@ -62,6 +62,8 @@ export const useChatStore = create<ChatState>()(
               content,
               streaming: false,
               contextGraph,
+              contextUsed,
+              enrichedContext,
             };
           }
           return { messages };

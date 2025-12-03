@@ -28,7 +28,6 @@ export function Header() {
     try {
       await fetch('/api/auth/logout', {
         method: 'POST',
-        credentials: 'include', // Ensure cookies are sent with cross-origin requests
       });
       logout();
       clearMessages();
@@ -40,7 +39,7 @@ export function Header() {
 
   return (
     <TooltipProvider>
-      <header className="flex h-14 items-center justify-between glass-card border-b border-neutral-200/30 dark:border-neutral-700/30 px-4 transition-theme">
+      <header className="flex h-14 items-center justify-between border-b border-neutral-800/50 bg-neutral-900/40 backdrop-blur-xl px-4 transition-theme">
         <div className="flex items-center gap-3">
           <div className="relative">
             <div className="absolute inset-0 bg-primary-500/30 blur-lg rounded-xl" />
@@ -50,12 +49,12 @@ export function Header() {
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <h1 className="text-base font-bold text-neutral-800 dark:text-neutral-100">
+              <h1 className="text-base font-bold text-neutral-100">
                 Context AI
               </h1>
               <Sparkles className="h-3.5 w-3.5 text-accent-500" />
             </div>
-            <p className="text-[10px] text-neutral-500 dark:text-neutral-400">Knowledge-aware assistant</p>
+            <p className="text-[10px] text-neutral-400">Knowledge-aware assistant</p>
           </div>
         </div>
 
@@ -76,7 +75,7 @@ export function Header() {
 
           {user && (
             <>
-              <div className="mx-2 h-5 w-px bg-neutral-200/50 dark:bg-neutral-700/50" />
+              <div className="mx-2 h-5 w-px bg-neutral-700/50" />
 
               <div className="flex items-center gap-2">
                 <Avatar className="h-7 w-7 ring-2 ring-primary-500/20">
@@ -84,7 +83,7 @@ export function Header() {
                     {user.name.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                <span className="hidden text-sm font-medium text-neutral-700 dark:text-neutral-200 md:block">
+                <span className="hidden text-sm font-medium text-neutral-200 md:block">
                   {user.name}
                 </span>
               </div>

@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { AuthUser } from '@/lib/types';
+import { authToken } from '@/lib/auth/token';
 
 interface AuthState {
   user: AuthUser | null;
@@ -30,12 +31,14 @@ export const useAuthStore = create<AuthState>()(
 
       setLoading: (loading) => set({ isLoading: loading }),
 
-      logout: () =>
+      logout: () => {
+        authToken.remove(); // Clear token from localStorage
         set({
           user: null,
           isAuthenticated: false,
           isLoading: false,
-        }),
+        });
+      },
     }),
     {
       name: 'auth-storage',

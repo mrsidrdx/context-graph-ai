@@ -78,6 +78,7 @@ export interface Message {
     projectCount: number;
   };
   contextGraph?: GraphContext;
+  enrichedContext?: EnrichedContext;
 }
 
 export interface ChatSession {

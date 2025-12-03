@@ -39,7 +39,7 @@ const ScrollBar = React.forwardRef<
       )}
       {...props}
     >
-      <div className="h-full w-full bg-neutral-300 dark:bg-neutral-600 rounded-full" />
+      <div className="h-full w-full bg-neutral-600 rounded-full" />
     </div>
   );
 });

@@ -4,6 +4,11 @@ import { nanoid } from 'nanoid';
 import { registerSchema } from '@/lib/validations';
 import { createSession } from '@/lib/auth/session';
 import { getSession } from '@/lib/db/neo4j';
+import { handleOptions, addCorsHeaders } from '@/lib/cors';
+
+export async function OPTIONS() {
+  return handleOptions();
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,10 +16,11 @@ export async function POST(request: NextRequest) {
     const validationResult = registerSchema.safeParse(body);
 
     if (!validationResult.success) {
-      return NextResponse.json(
+      const response = NextResponse.json(
         { error: 'Validation failed', details: validationResult.error.issues },
         { status: 400 }
       );
+      return addCorsHeaders(response);
     }
 
     const { email, password, name } = validationResult.data;
@@ -27,10 +33,11 @@ export async function POST(request: NextRequest) {
       );
 
       if (existingUser.records.length > 0) {
-        return NextResponse.json(
+        const response = NextResponse.json(
           { error: 'User already exists' },
           { status: 409 }
         );
+        return addCorsHeaders(response);
       }
 
       const hashedPassword = await hash(password, 12);
@@ -52,20 +59,23 @@ export async function POST(request: NextRequest) {
         }
       );
 
-      await createSession({ userId, email, name });
+      const token = await createSession({ userId, email, name });
 
-      return NextResponse.json(
+      const response = NextResponse.json(
         {
           success: true,
+          token, // Return token to client
           user: { id: userId, email, name },
         },
         { status: 201 }
       );
+      return addCorsHeaders(response);
     } finally {
       await neo4jSession.close();
     }
   } catch (error) {
     console.error('Register error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const response = NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return addCorsHeaders(response);
   }
 }

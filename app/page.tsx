@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/auth';
+import { authenticatedFetch } from '@/lib/auth/token';
 import { Header } from '@/components/layout/header';
 import { ChatContainer } from '@/components/chat/chat-container';
 
@@ -13,9 +14,7 @@ export default function Home() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch('/api/auth/me', {
-          credentials: 'include', // Ensure cookies are sent with cross-origin requests
-        });
+        const response = await authenticatedFetch('/api/auth/me');
         if (response.ok) {
           const data = await response.json();
           setUser(data.user);
@@ -36,10 +35,10 @@ export default function Home() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-neutral-50 dark:bg-neutral-950">
+      <div className="flex h-screen items-center justify-center bg-gradient-to-br from-neutral-900 via-neutral-950 to-black">
         <div className="flex flex-col items-center gap-4">
-          <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary-200 border-t-primary-500" />
-          <p className="text-neutral-500">Loading...</p>
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary-500/30 border-t-primary-500" />
+          <p className="text-neutral-400">Loading...</p>
         </div>
       </div>
     );
@@ -50,7 +49,7 @@ export default function Home() {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-white dark:bg-neutral-900">
+    <div className="flex h-screen flex-col bg-gradient-to-br from-neutral-900 via-neutral-950 to-black">
       <Header />
       <main className="flex-1 overflow-hidden">
         <ChatContainer />

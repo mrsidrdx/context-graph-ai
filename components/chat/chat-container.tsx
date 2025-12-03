@@ -5,6 +5,7 @@ import { nanoid } from 'nanoid';
 import { useRouter } from 'next/navigation';
 import { useChatStore } from '@/lib/stores/chat';
 import { useAuthStore } from '@/lib/stores/auth';
+import { authenticatedFetch } from '@/lib/auth/token';
 import { ChatMessage } from './message';
 import { ChatInput } from './chat-input';
 import { ContextPanel } from './context-panel';
@@ -21,6 +22,8 @@ interface ChatContainerProps {
 export function ChatContainer({ conversationId }: ChatContainerProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const bufferRef = useRef<string>('');
+  const streamBufferRef = useRef<string>('');
+  const currentMessageIdRef = useRef<string>('');
   const router = useRouter();
 
   const {
@@ -28,6 +31,7 @@ export function ChatContainer({ conversationId }: ChatContainerProps) {
     isStreaming,
     currentStreamContent,
     context,
+    enrichedContext,
     showContextPanel,
     currentConversationId,
     setCurrentConversation,
@@ -46,9 +50,7 @@ export function ChatContainer({ conversationId }: ChatContainerProps) {
       if (!conversationId || !user) return;
 
       try {
-        const response = await fetch(`/api/conversations/${conversationId}`, {
-          credentials: 'include', // Ensure cookies are sent with cross-origin requests
-        });
+        const response = await authenticatedFetch(`/api/conversations/${conversationId}`);
         if (response.ok) {
           const data = await response.json();
           const messages: Message[] = data.messages.map((m: IMessage) => ({
@@ -58,14 +60,21 @@ export function ChatContainer({ conversationId }: ChatContainerProps) {
             timestamp: new Date(m.timestamp),
             contextUsed: m.contextUsed,
             contextGraph: m.contextGraph,
+            enrichedContext: m.enrichedContext,
           }));
+
+          // Find the last assistant message with enriched context
+          const lastAssistantMessage = messages
+            .filter(m => m.role === 'assistant')
+            .reverse()
+            .find(m => m.enrichedContext);
 
           // Load conversation into store
           useChatStore.setState({
             currentConversationId: conversationId,
             messages,
-            context: null,
-            enrichedContext: null,
+            context: lastAssistantMessage?.contextGraph || null,
+            enrichedContext: lastAssistantMessage?.enrichedContext || null,
             currentStreamContent: '',
           });
 
@@ -111,18 +120,32 @@ export function ChatContainer({ conversationId }: ChatContainerProps) {
       setEnrichedContext(parsed.enrichedContext);
     }
     if (parsed.done) {
-      // Save context graph with the last message
-      const finalContext = context;
-      updateLastMessage(bufferRef.current, finalContext || undefined);
+      // Get the current state to access the latest context and enrichedContext
+      const state = useChatStore.getState();
+      const finalContext = state.context;
+      const finalEnrichedContext = state.enrichedContext;
+      const contextUsed = finalContext ? {
+        documentCount: finalContext.nodes.filter((n) => n.type === 'Document').length,
+        topicCount: finalContext.nodes.filter((n) => n.type === 'Topic').length,
+        projectCount: finalContext.nodes.filter((n) => n.type === 'Project').length,
+      } : undefined;
+      updateLastMessage(bufferRef.current, finalContext || undefined, contextUsed, finalEnrichedContext || undefined);
     }
-  }, [updateLastMessage, setContext, setEnrichedContext, context]);
+  }, [updateLastMessage, setContext, setEnrichedContext]);
 
   const processStreamChunk = useCallback((chunk: string) => {
-    const lines = chunk.split('\n');
-    
-    for (const line of lines) {
+    streamBufferRef.current += chunk;
+    let buffer = streamBufferRef.current;
+
+    while (true) {
+      const endIndex = buffer.indexOf('\n\n');
+      if (endIndex === -1) break;
+
+      const line = buffer.slice(0, endIndex);
+      buffer = buffer.slice(endIndex + 2);
+
       if (!line.startsWith('data: ')) continue;
-      
+
       const data = line.slice(6);
       if (data === '[DONE]') continue;
 
@@ -133,6 +156,8 @@ export function ChatContainer({ conversationId }: ChatContainerProps) {
         // Ignore parse errors for streaming chunks
       }
     }
+
+    streamBufferRef.current = buffer;
   }, [handleStreamData]);
 
   const handleSendMessage = useCallback(async (content: string) => {
@@ -141,16 +166,24 @@ export function ChatContainer({ conversationId }: ChatContainerProps) {
     // If no conversationId (on root page), create conversation first
     if (!conversationId) {
       try {
-        const createResponse = await fetch('/api/conversations', {
+        const createResponse = await authenticatedFetch('/api/conversations', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          credentials: 'include', // Ensure cookies are sent with cross-origin requests
           body: JSON.stringify({ title: content.slice(0, 50) + (content.length > 50 ? '...' : '') }),
         });
 
         if (!createResponse.ok) throw new Error('Failed to create conversation');
 
         const { id: newConversationId } = await createResponse.json();
+        
+        // Add user message to local state immediately
+        const userMessage: Message = {
+          id: nanoid(),
+          role: 'user',
+          content,
+          timestamp: new Date(),
+        };
+        addMessage(userMessage);
         
         // Store the message to send after redirect
         localStorage.setItem('pendingMessage', content);
@@ -173,12 +206,15 @@ export function ChatContainer({ conversationId }: ChatContainerProps) {
 
     addMessage(userMessage);
     setStreaming(true);
+    
+    // Clear previous context when sending a new message
+    setContext(null);
+    setEnrichedContext(null);
 
     try {
-      const response = await fetch('/api/chat', {
+      const response = await authenticatedFetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', // Ensure cookies are sent with cross-origin requests
         body: JSON.stringify({ 
           message: content,
           conversationId: conversationId || currentConversationId 
@@ -197,6 +233,7 @@ export function ChatContainer({ conversationId }: ChatContainerProps) {
         timestamp: new Date(),
       };
 
+      currentMessageIdRef.current = assistantMessage.id;
       addMessage(assistantMessage);
 
       const decoder = new TextDecoder();
@@ -219,6 +256,7 @@ export function ChatContainer({ conversationId }: ChatContainerProps) {
     } finally {
       setStreaming(false);
       bufferRef.current = '';
+      streamBufferRef.current = '';
     }
   }, [user, isStreaming, currentConversationId, addMessage, setStreaming, updateLastMessage, processStreamChunk, conversationId, router]);
 
@@ -233,12 +271,41 @@ export function ChatContainer({ conversationId }: ChatContainerProps) {
   ];
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full bg-gradient-to-br from-neutral-900 via-neutral-950 to-black">
+      {/* Animated background elements */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <motion.div
+          animate={{
+            scale: [1, 1.2, 1],
+            opacity: [0.05, 0.1, 0.05],
+          }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          }}
+          className="absolute top-1/4 -left-1/4 h-96 w-96 bg-primary-500 rounded-full blur-3xl"
+        />
+        <motion.div
+          animate={{
+            scale: [1, 1.1, 1],
+            opacity: [0.03, 0.08, 0.03],
+          }}
+          transition={{
+            duration: 10,
+            repeat: Infinity,
+            ease: 'easeInOut',
+            delay: 1,
+          }}
+          className="absolute bottom-1/4 -right-1/4 h-96 w-96 bg-accent-500 rounded-full blur-3xl"
+        />
+      </div>
+
       {/* Sidebar */}
       <ChatSidebar />
       
       {/* Main Chat Area */}
-      <div className="flex flex-1 flex-col relative">
+      <div className="flex flex-1 flex-col relative z-10">
         <ScrollArea className="flex-1">
           <div className="mx-auto max-w-5xl px-4 py-6">
             {messages.length === 0 ? (
@@ -453,7 +520,7 @@ export function ChatContainer({ conversationId }: ChatContainerProps) {
         <motion.div 
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          className="p-6 glass-card border-t border-neutral-200/30 dark:border-neutral-700/30"
+          className="p-6 border-t border-neutral-800/50 bg-gradient-to-t from-neutral-900/80 to-transparent backdrop-blur-xl"
         >
           <div className="mx-auto md:max-w-5xl max-w-full px-4">
             <ChatInput onSend={handleSendMessage} isLoading={isStreaming} disabled={!user} />

@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySession } from '@/lib/auth/session';
 import { getUserContext } from '@/lib/services/context';
+import { handleOptions, addCorsHeaders } from '@/lib/cors';
+
+export async function OPTIONS() {
+  return handleOptions();
+}
 
 export async function GET(
   request: NextRequest,
@@ -9,13 +14,13 @@ export async function GET(
   try {
     const session = await verifySession();
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return addCorsHeaders(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
     }
 
     const { userId } = await params;
 
     if (session.userId !== userId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return addCorsHeaders(NextResponse.json({ error: 'Forbidden' }, { status: 403 }));
     }
 
     const searchParams = request.nextUrl.searchParams;
@@ -24,9 +29,9 @@ export async function GET(
 
     const context = await getUserContext(userId, validDepth as 1 | 2 | 3);
 
-    return NextResponse.json(context);
+    return addCorsHeaders(NextResponse.json(context));
   } catch (error) {
     console.error('Context API error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return addCorsHeaders(NextResponse.json({ error: 'Internal server error' }, { status: 500 }));
   }
 }

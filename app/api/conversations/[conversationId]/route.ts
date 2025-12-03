@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifySession } from '@/lib/auth/session';
 import { connectToDatabase } from '@/lib/db/mongodb';
 import { Conversation } from '@/lib/models/conversation';
+import { handleOptions, addCorsHeaders } from '@/lib/cors';
+
+export async function OPTIONS() {
+  return handleOptions();
+}
 
 export async function GET(
   _request: NextRequest,
@@ -10,7 +15,7 @@ export async function GET(
   try {
     const session = await verifySession();
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return addCorsHeaders(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
     }
 
     const { conversationId } = await params;
@@ -22,19 +27,19 @@ export async function GET(
     }).lean();
 
     if (!conversation) {
-      return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
+      return addCorsHeaders(NextResponse.json({ error: 'Conversation not found' }, { status: 404 }));
     }
 
-    return NextResponse.json({
+    return addCorsHeaders(NextResponse.json({
       id: conversation.conversationId,
       title: conversation.title,
       messages: conversation.messages,
       createdAt: conversation.createdAt,
       updatedAt: conversation.updatedAt,
-    });
+    }));
   } catch (error) {
     console.error('Get conversation error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return addCorsHeaders(NextResponse.json({ error: 'Internal server error' }, { status: 500 }));
   }
 }
 
@@ -45,7 +50,7 @@ export async function PATCH(
   try {
     const session = await verifySession();
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return addCorsHeaders(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
     }
 
     const { conversationId } = await params;
@@ -61,16 +66,16 @@ export async function PATCH(
     );
 
     if (!conversation) {
-      return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
+      return addCorsHeaders(NextResponse.json({ error: 'Conversation not found' }, { status: 404 }));
     }
 
-    return NextResponse.json({
+    return addCorsHeaders(NextResponse.json({
       id: conversation.conversationId,
       title: conversation.title,
-    });
+    }));
   } catch (error) {
     console.error('Update conversation error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return addCorsHeaders(NextResponse.json({ error: 'Internal server error' }, { status: 500 }));
   }
 }
 
@@ -81,7 +86,7 @@ export async function DELETE(
   try {
     const session = await verifySession();
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return addCorsHeaders(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
     }
 
     const { conversationId } = await params;
@@ -93,12 +98,12 @@ export async function DELETE(
     });
 
     if (result.deletedCount === 0) {
-      return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
+      return addCorsHeaders(NextResponse.json({ error: 'Conversation not found' }, { status: 404 }));
     }
 
-    return NextResponse.json({ success: true });
+    return addCorsHeaders(NextResponse.json({ success: true }));
   } catch (error) {
     console.error('Delete conversation error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return addCorsHeaders(NextResponse.json({ error: 'Internal server error' }, { status: 500 }));
   }
 }

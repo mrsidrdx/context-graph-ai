@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { nanoid } from 'nanoid';
 import { chatRequestSchema } from '@/lib/validations';
 import { verifySession } from '@/lib/auth/session';
@@ -6,20 +6,26 @@ import { rateLimitCheck } from '@/lib/db/redis';
 import { processQuestion } from '@/lib/services/agent';
 import { connectToDatabase } from '@/lib/db/mongodb';
 import { Conversation } from '@/lib/models/conversation';
+import { handleOptions, addCorsHeaders } from '@/lib/cors';
+
+export async function OPTIONS() {
+  return handleOptions();
+}
 
 export async function POST(request: NextRequest) {
   try {
     const session = await verifySession();
     if (!session) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      const response = new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' },
       });
+      return addCorsHeaders(response as NextResponse);
     }
 
     const rateLimit = await rateLimitCheck(session.userId, 20, 60);
     if (!rateLimit.allowed) {
-      return new Response(
+      const response = new Response(
         JSON.stringify({
           error: 'Rate limit exceeded',
           resetIn: rateLimit.resetIn,
@@ -29,13 +35,14 @@ export async function POST(request: NextRequest) {
           headers: { 'Content-Type': 'application/json' },
         }
       );
+      return addCorsHeaders(response as NextResponse);
     }
 
     const body = await request.json();
     const validationResult = chatRequestSchema.safeParse(body);
 
     if (!validationResult.success) {
-      return new Response(
+      const response = new Response(
         JSON.stringify({
           error: 'Validation failed',
           details: validationResult.error.issues,
@@ -45,26 +52,28 @@ export async function POST(request: NextRequest) {
           headers: { 'Content-Type': 'application/json' },
         }
       );
+      return addCorsHeaders(response as NextResponse);
     }
 
     const { message, options, conversationId } = validationResult.data;
     const messageId = nanoid();
-    
+
     // Verify conversation exists
     await connectToDatabase();
-    
+
     const existingConversation = await Conversation.findOne({
       conversationId,
       userId: session.userId,
     });
-    
+
     if (!existingConversation) {
-      return new Response(JSON.stringify({ error: 'Conversation not found' }), {
+      const response = new Response(JSON.stringify({ error: 'Conversation not found' }), {
         status: 404,
         headers: { 'Content-Type': 'application/json' },
       });
+      return addCorsHeaders(response as NextResponse);
     }
-    
+
     // Save user message
     const userMessage = {
       id: nanoid(),
@@ -72,10 +81,10 @@ export async function POST(request: NextRequest) {
       content: message,
       timestamp: new Date(),
     };
-    
+
     await Conversation.findOneAndUpdate(
       { conversationId, userId: session.userId },
-      { 
+      {
         $push: { messages: userMessage },
         $set: { updatedAt: new Date() }
       }
@@ -83,15 +92,16 @@ export async function POST(request: NextRequest) {
 
     const encoder = new TextEncoder();
     let capturedContext: any = null;
+    let capturedEnrichedContext: any = null;
     let fullResponse = '';
-    
+
     const stream = new ReadableStream({
       async start(controller) {
         try {
           // Send conversationId immediately
           const convData = `data: ${JSON.stringify({ conversationId })}\n\n`;
           controller.enqueue(encoder.encode(convData));
-          
+
           for await (const event of processQuestion(session.userId, message, {
             maxContextDepth: options?.maxContextDepth,
             includeVisualization: options?.includeVisualization,
@@ -104,6 +114,7 @@ export async function POST(request: NextRequest) {
                 data = `data: ${JSON.stringify({ context: event.data })}\n\n`;
                 break;
               case 'enriched':
+                capturedEnrichedContext = event.data;
                 data = `data: ${JSON.stringify({ enrichedContext: event.data })}\n\n`;
                 break;
               case 'token':
@@ -123,16 +134,17 @@ export async function POST(request: NextRequest) {
                     projectCount: capturedContext.nodes.filter((n: any) => n.type === 'Project').length,
                   } : undefined,
                   contextGraph: capturedContext || undefined,
+                  enrichedContext: capturedEnrichedContext || undefined,
                 };
-                
+
                 await Conversation.findOneAndUpdate(
                   { conversationId, userId: session.userId },
-                  { 
+                  {
                     $push: { messages: assistantMessage },
                     $set: { updatedAt: new Date() }
                   }
                 );
-                
+
                 data = `data: ${JSON.stringify({ done: true, messageId, conversationId, ...event.data })}\n\n`;
                 break;
             }
@@ -153,18 +165,20 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return new Response(stream, {
+    const response = new Response(stream, {
       headers: {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
         Connection: 'keep-alive',
       },
     });
+    return addCorsHeaders(response as NextResponse);
   } catch (error) {
     console.error('Chat API error:', error);
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+    const response = new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });
+    return addCorsHeaders(response as NextResponse);
   }
 }

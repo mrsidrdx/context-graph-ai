@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifySession } from '@/lib/auth/session';
+import { handleOptions, addCorsHeaders } from '@/lib/cors';
 
 const SEED_TEMPLATES = {
   developer: {
@@ -20,7 +21,6 @@ const SEED_TEMPLATES = {
 };
 
 const BLANK_TEMPLATE = {
-  userId: 'your_user_id',
   documents: [
     {
       title: 'Example Document',
@@ -65,17 +65,21 @@ const BLANK_TEMPLATE = {
   ],
 };
 
+export async function OPTIONS() {
+  return handleOptions();
+}
+
 export async function GET() {
   try {
     const session = await verifySession();
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return addCorsHeaders(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
     }
 
-    return NextResponse.json({ templates: SEED_TEMPLATES });
+    return addCorsHeaders(NextResponse.json({ templates: SEED_TEMPLATES }));
   } catch (error) {
     console.error('Get templates error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return addCorsHeaders(NextResponse.json({ error: 'Internal server error' }, { status: 500 }));
   }
 }
 
@@ -83,18 +87,17 @@ export async function POST() {
   try {
     const session = await verifySession();
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return addCorsHeaders(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
     }
 
     // Return blank template with user's ID pre-filled
     const template = {
       ...BLANK_TEMPLATE,
-      userId: session.userId,
     };
 
-    return NextResponse.json({ template });
+    return addCorsHeaders(NextResponse.json({ template }));
   } catch (error) {
     console.error('Get blank template error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return addCorsHeaders(NextResponse.json({ error: 'Internal server error' }, { status: 500 }));
   }
 }

@@ -17,7 +17,7 @@ export function ChatMessage({ message, isStreaming }: MessageProps) {
   const [copied, setCopied] = useState(false);
   const [showActions, setShowActions] = useState(false);
   const [showCopyToast, setShowCopyToast] = useState(false);
-  const { setContext, toggleContextPanel, showContextPanel } = useChatStore();
+  const { setContext, toggleContextPanel, showContextPanel, setEnrichedContext } = useChatStore();
   const isUser = message.role === 'user';
 
   const handleCopy = async () => {
@@ -33,12 +33,32 @@ export function ChatMessage({ message, isStreaming }: MessageProps) {
       }, 2000);
     } catch (error) {
       console.error('Failed to copy text:', error);
+      // Fallback for older browsers or when clipboard API fails
+      try {
+        const textArea = document.createElement('textarea');
+        textArea.value = message.content;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        
+        setCopied(true);
+        setShowCopyToast(true);
+        setTimeout(() => {
+          setCopied(false);
+          setShowCopyToast(false);
+        }, 2000);
+      } catch (fallbackError) {
+        console.error('Fallback copy failed:', fallbackError);
+      }
     }
   };
   
   const handleViewContext = () => {
     if (message.contextGraph) {
       setContext(message.contextGraph);
+      // Also set the enriched context for this specific message
+      setEnrichedContext(message.enrichedContext || null);
       if (!showContextPanel) {
         toggleContextPanel();
       }
@@ -119,7 +139,7 @@ export function ChatMessage({ message, isStreaming }: MessageProps) {
             'relative max-w-[90%] rounded-2xl px-5 py-4 transition-all-300',
             isUser
               ? 'ml-auto rounded-tr-sm bg-gradient-to-br from-primary-500 to-primary-600 text-white shadow-xl shadow-primary-500/20 hover:shadow-2xl'
-              : 'glass-card rounded-tl-sm hover:shadow-lg'
+              : 'rounded-tl-sm border border-neutral-800/50 bg-neutral-800/20 hover:bg-neutral-800/30 backdrop-blur-sm hover:shadow-lg'
           )}
         >
           {/* Copy button */}
@@ -196,7 +216,7 @@ export function ChatMessage({ message, isStreaming }: MessageProps) {
                 {message.content}
               </div>
             ) : (
-              <div className="text-sm text-neutral-800 dark:text-neutral-100 pr-8">
+              <div className="text-sm text-neutral-100 pr-8">
                 <MarkdownRenderer content={message.content} />
 
                 {/* Enhanced streaming cursor */}
@@ -219,7 +239,7 @@ export function ChatMessage({ message, isStreaming }: MessageProps) {
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="mt-4 flex items-center justify-between border-t border-neutral-200/50 pt-3 text-xs dark:border-neutral-700/50"
+                className="mt-4 flex items-center justify-between border-t border-neutral-700/50 pt-3 text-xs"
               >
                 <div className="flex items-center gap-2">
                   <motion.div
@@ -228,10 +248,10 @@ export function ChatMessage({ message, isStreaming }: MessageProps) {
                   >
                     <Sparkles className="h-3.5 w-3.5 text-accent-500" />
                   </motion.div>
-                  <span className="text-neutral-600 dark:text-neutral-300 font-medium">
+                  <span className="text-neutral-300 font-medium">
                     Context-aware response
                   </span>
-                  <span className="text-neutral-500 dark:text-neutral-400">
+                  <span className="text-neutral-400">
                     • {message.contextUsed.documentCount} docs, {message.contextUsed.topicCount} topics
                     {message.contextUsed.projectCount > 0 && `, ${message.contextUsed.projectCount} projects`}
                   </span>
@@ -241,7 +261,7 @@ export function ChatMessage({ message, isStreaming }: MessageProps) {
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                     onClick={handleViewContext}
-                    className="flex items-center gap-1 px-2 py-1 rounded-lg bg-accent-500/10 hover:bg-accent-500/20 text-accent-600 dark:text-accent-400 transition-colors"
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg bg-accent-500/10 hover:bg-accent-500/20 text-accent-300 transition-colors"
                     title="View context graph"
                   >
                     <Network className="h-3 w-3" />
@@ -259,7 +279,7 @@ export function ChatMessage({ message, isStreaming }: MessageProps) {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
           className={cn(
-            'mt-2 text-xs text-neutral-400 dark:text-neutral-500',
+            'mt-2 text-xs text-neutral-500',
             isUser ? 'text-right' : 'text-left'
           )}
         >

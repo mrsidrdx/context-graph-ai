@@ -249,7 +249,7 @@ export function ContextPanel({ context }: ContextPanelProps) {
                 <Network className="h-4 w-4 text-accent-400" />
               </div>
               <div>
-                <h3 className="font-semibold text-neutral-800 dark:text-neutral-100 text-sm">
+                <h3 className="font-semibold text-neutral-100 text-sm">
                   Context Graph
                 </h3>
               </div>
@@ -258,7 +258,7 @@ export function ContextPanel({ context }: ContextPanelProps) {
               variant="ghost" 
               size="sm" 
               onClick={toggleContextPanel}
-              className="h-8 w-8 p-0 hover:bg-neutral-200/50 dark:hover:bg-neutral-700/50 transition-all-200"
+              className="h-8 w-8 p-0 hover:bg-neutral-700/50 transition-all-200 text-neutral-400 hover:text-neutral-200"
             >
               <X className="h-4 w-4" />
             </Button>
@@ -286,21 +286,21 @@ export function ContextPanel({ context }: ContextPanelProps) {
         animate={{ width: 360, opacity: 1 }}
         exit={{ width: 0, opacity: 0 }}
         transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-        className="glass-card border-l border-neutral-200/30 dark:border-neutral-700/30 overflow-hidden"
+        className="border-l border-neutral-800/50 bg-neutral-900/40 backdrop-blur-xl overflow-hidden"
       >
         <div className="flex h-full flex-col">
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-neutral-200/30 dark:border-neutral-700/30">
+          <div className="flex items-center justify-between p-4 border-b border-neutral-800/50">
             <div className="flex items-center gap-2">
               <div className="p-1.5 rounded-lg bg-accent-500/20">
                 <Network className="h-4 w-4 text-accent-400" />
               </div>
               <div>
-                <h3 className="font-semibold text-neutral-800 dark:text-neutral-100 text-sm">
+                <h3 className="font-semibold text-neutral-100 text-sm">
                   Context Graph
                 </h3>
                 {context.statistics && (
-                  <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                  <p className="text-xs text-neutral-400">
                     {context.statistics.totalNodes} nodes • {context.statistics.totalRelationships} connections
                   </p>
                 )}
@@ -323,31 +323,31 @@ export function ContextPanel({ context }: ContextPanelProps) {
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="glass rounded-xl p-4 border border-neutral-200/50 dark:border-neutral-700/50"
+                  className="rounded-xl p-4 border border-neutral-800/50 bg-neutral-800/20 backdrop-blur-sm"
                 >
                   <div className="flex items-center gap-2 mb-3">
-                    <BarChart3 className="h-4 w-4 text-neutral-600 dark:text-neutral-400" />
-                    <span className="text-xs font-medium text-neutral-600 dark:text-neutral-400">Overview</span>
+                    <BarChart3 className="h-4 w-4 text-neutral-400" />
+                    <span className="text-xs font-medium text-neutral-300">Overview</span>
                   </div>
                   <div className="grid grid-cols-2 gap-3 text-center">
-                    <div className="bg-neutral-50 dark:bg-neutral-800/50 rounded-lg p-2">
-                      <div className="text-lg font-bold text-neutral-900 dark:text-neutral-100">
+                    <div className="bg-neutral-800/50 rounded-lg p-2">
+                      <div className="text-lg font-bold text-neutral-100">
                         {context.statistics.totalNodes}
                       </div>
-                      <div className="text-xs text-neutral-500 dark:text-neutral-400">Total Nodes</div>
+                      <div className="text-xs text-neutral-400">Total Nodes</div>
                     </div>
-                    <div className="bg-neutral-50 dark:bg-neutral-800/50 rounded-lg p-2">
-                      <div className="text-lg font-bold text-neutral-900 dark:text-neutral-100">
+                    <div className="bg-neutral-800/50 rounded-lg p-2">
+                      <div className="text-lg font-bold text-neutral-100">
                         {context.statistics.totalRelationships}
                       </div>
-                      <div className="text-xs text-neutral-500 dark:text-neutral-400">Connections</div>
+                      <div className="text-xs text-neutral-400">Connections</div>
                     </div>
                   </div>
-                  <div className="mt-3 pt-3 border-t border-neutral-200/50 dark:border-neutral-700/50">
-                    <div className="text-xs text-neutral-500 dark:text-neutral-400 mb-2">Node Types</div>
+                  <div className="mt-3 pt-3 border-t border-neutral-700/50">
+                    <div className="text-xs text-neutral-400 mb-2">Node Types</div>
                     <div className="flex flex-wrap gap-1">
                       {Object.entries(context.statistics.nodeTypes).map(([type, count]) => (
-                        <span key={type} className="px-2 py-1 bg-neutral-100 dark:bg-neutral-800 rounded text-xs text-neutral-600 dark:text-neutral-400">
+                        <span key={type} className="px-2 py-1 bg-neutral-700/50 rounded text-xs text-neutral-300">
                           {type}: {count}
                         </span>
                       ))}
@@ -361,7 +361,7 @@ export function ContextPanel({ context }: ContextPanelProps) {
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="glass rounded-xl p-3 border border-accent-500/20"
+                  className="rounded-xl p-3 border border-accent-500/20 bg-accent-500/5 backdrop-blur-sm"
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
@@ -371,7 +371,7 @@ export function ContextPanel({ context }: ContextPanelProps) {
                     {enrichedContext.keyInsights.length > 3 && (
                       <button
                         onClick={() => setShowAllInsights(!showAllInsights)}
-                        className="text-[10px] text-accent-500 hover:text-accent-600 flex items-center gap-1 transition-colors"
+                        className="text-[10px] text-accent-400 hover:text-accent-300 flex items-center gap-1 transition-colors"
                       >
                         {showAllInsights ? (
                           <>
@@ -389,8 +389,8 @@ export function ContextPanel({ context }: ContextPanelProps) {
                   </div>
                   <ul className="space-y-2">
                     {insightsToShow.map((insight, i) => (
-                      <li key={`insight-${i}`} className="text-xs text-neutral-600 dark:text-neutral-300 flex items-start gap-2">
-                        <CheckCircle className="h-3 w-3 text-accent-500 mt-0.5 shrink-0" />
+                      <li key={`insight-${i}`} className="text-xs text-neutral-300 flex items-start gap-2">
+                        <CheckCircle className="h-3 w-3 text-accent-400 mt-0.5 shrink-0" />
                         <span>{insight}</span>
                       </li>
                     ))}
@@ -445,7 +445,7 @@ export function ContextPanel({ context }: ContextPanelProps) {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <span className={colors.text}>{nodeIcons[node.type]}</span>
-                              <span className="text-xs font-medium text-neutral-700 dark:text-neutral-200 truncate max-w-[120px]">
+                              <span className="text-xs font-medium text-neutral-100 truncate max-w-[120px]">
                                 {node.id}
                               </span>
                             </div>
@@ -460,7 +460,7 @@ export function ContextPanel({ context }: ContextPanelProps) {
                             </div>
                           </div>
                           {node.reason && (
-                            <p className="text-[10px] text-neutral-500 dark:text-neutral-400 mt-1 line-clamp-1">
+                            <p className="text-[10px] text-neutral-400 mt-1 line-clamp-1">
                               {node.reason}
                             </p>
                           )}
@@ -609,7 +609,7 @@ export function ContextPanel({ context }: ContextPanelProps) {
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="glass rounded-xl p-3 border border-amber-500/20"
+                  className="rounded-xl p-3 border border-amber-500/20 bg-amber-500/5 backdrop-blur-sm"
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
@@ -619,7 +619,7 @@ export function ContextPanel({ context }: ContextPanelProps) {
                     {enrichedContext.missingInformation.length > 2 && (
                       <button
                         onClick={() => setShowAllMissing(!showAllMissing)}
-                        className="text-[10px] text-amber-500 hover:text-amber-600 flex items-center gap-1 transition-colors"
+                        className="text-[10px] text-amber-400 hover:text-amber-300 flex items-center gap-1 transition-colors"
                       >
                         {showAllMissing ? (
                           <>
@@ -637,8 +637,8 @@ export function ContextPanel({ context }: ContextPanelProps) {
                   </div>
                   <ul className="space-y-1.5">
                     {missingToShow.map((info, i) => (
-                      <li key={`missing-${i}`} className="text-[10px] text-neutral-500 dark:text-neutral-400 flex items-start gap-2">
-                        <Info className="h-3 w-3 text-amber-500 mt-0.5 shrink-0" />
+                      <li key={`missing-${i}`} className="text-[10px] text-neutral-300 flex items-start gap-2">
+                        <Info className="h-3 w-3 text-amber-400 mt-0.5 shrink-0" />
                         <span>{info}</span>
                       </li>
                     ))}

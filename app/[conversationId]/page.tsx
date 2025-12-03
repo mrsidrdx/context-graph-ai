@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/auth';
+import { authenticatedFetch } from '@/lib/auth/token';
 import { Header } from '@/components/layout/header';
 import { ChatContainer } from '@/components/chat/chat-container';
 
@@ -17,9 +18,7 @@ export default function ConversationPage() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch('/api/auth/me', {
-          credentials: 'include', // Ensure cookies are sent with cross-origin requests
-        });
+        const response = await authenticatedFetch('/api/auth/me');
         if (response.ok) {
           const data = await response.json();
           setUser(data.user);
@@ -44,9 +43,7 @@ export default function ConversationPage() {
       if (!user || !conversationId) return;
 
       try {
-        const response = await fetch(`/api/conversations/${conversationId}`, {
-          credentials: 'include', // Ensure cookies are sent with cross-origin requests
-        });
+        const response = await authenticatedFetch(`/api/conversations/${conversationId}`);
         if (response.ok) {
           setConversationExists(true);
         } else if (response.status === 404) {
