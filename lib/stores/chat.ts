@@ -106,6 +106,12 @@ export const useChatStore = create<ChatState>()(
         showContextPanel: state.showContextPanel,
         sidebarOpen: state.sidebarOpen,
       }),
+      onRehydrateStorage: () => (state) => {
+        // Ensure sidebar is open by default on first load
+        if (state && state.sidebarOpen === undefined) {
+          state.sidebarOpen = true;
+        }
+      },
     }
   )
 );

@@ -161,14 +161,15 @@ export function ChatSidebar() {
                     {isStreaming ? 'Thinking...' : 'Chats'}
                   </span>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
                   onClick={toggleSidebar}
-                  className="h-8 w-8 p-0 hover:bg-neutral-700/50 transition-all-200 text-neutral-400 hover:text-neutral-200"
+                  className="p-1.5 rounded-lg hover:bg-neutral-700/50 transition-all-200 text-neutral-400 hover:text-neutral-200 cursor-pointer"
+                  type="button"
                 >
                   <ChevronLeft className="h-4 w-4" />
-                </Button>
+                </motion.button>
               </div>
 
               <motion.button
@@ -324,20 +325,30 @@ export function ChatSidebar() {
         )}
       </AnimatePresence>
 
-      {/* Collapsed Toggle */}
+      {/* Collapsed Toggle - Show when sidebar is closed */}
       {!sidebarOpen && (
         <motion.button
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
+          initial={{ opacity: 0, scale: 0.5, x: -20 }}
+          animate={{ opacity: 1, scale: 1, x: 0 }}
+          exit={{ opacity: 0, scale: 0.5, x: -20 }}
+          transition={{ duration: 0.2 }}
+          whileHover={{ scale: 1.2, x: 4 }}
+          whileTap={{ scale: 0.95 }}
           onClick={toggleSidebar}
-          className="absolute left-4 top-20 z-10 p-3 glass rounded-xl hover:bg-neutral-100/50 dark:hover:bg-neutral-800/50 transition-all-200 shadow-lg hover:shadow-xl"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              toggleSidebar();
+            }
+          }}
+          type="button"
+          tabIndex={0}
+          aria-label="Open sidebar"
+          className="fixed left-4 top-20 z-40 p-3 rounded-xl border-2 border-accent-400 bg-accent-500/10 hover:bg-accent-500/20 active:bg-accent-500/30 transition-all-200 shadow-lg hover:shadow-2xl cursor-pointer backdrop-blur-md hover:border-accent-300"
         >
           <div className="relative">
-            <MessageSquare className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
+            <MessageSquare className="h-6 w-6 text-accent-400 transition-all" />
             {isStreaming && (
-              <div className="absolute -top-1 -right-1 h-2 w-2 bg-green-500 rounded-full animate-pulse" />
+              <div className="absolute -bottom-1 -right-1 h-2.5 w-2.5 bg-green-400 rounded-full animate-pulse shadow-lg" />
             )}
           </div>
         </motion.button>

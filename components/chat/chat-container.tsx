@@ -529,7 +529,7 @@ export function ChatContainer({ conversationId }: ChatContainerProps) {
       </div>
 
       {/* Context Panel */}
-      {showContextPanel && context && <ContextPanel context={context} />}
+      {showContextPanel && <ContextPanel context={context} />}
     </div>
   );
 }

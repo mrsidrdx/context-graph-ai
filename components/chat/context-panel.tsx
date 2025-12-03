@@ -34,7 +34,7 @@ import { cn } from '@/lib/utils/cn';
 import type { GraphContext, GraphNode, GraphRelationship } from '@/lib/types';
 
 interface ContextPanelProps {
-  readonly context: GraphContext;
+  readonly context: GraphContext | null;
 }
 
 interface NodeDetailModalProps {
@@ -318,8 +318,25 @@ export function ContextPanel({ context }: ContextPanelProps) {
 
           <ScrollArea className="flex-1">
             <div className="p-4 space-y-5">
-              {/* Statistics Overview */}
-              {context.statistics && (
+              {/* Empty State */}
+              {!context || (context.nodes && context.nodes.length === 0) ? (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex flex-col items-center justify-center py-12 text-center"
+                >
+                  <div className="p-3 rounded-lg bg-neutral-800/30 mb-3">
+                    <Network className="h-6 w-6 text-neutral-500" />
+                  </div>
+                  <p className="text-sm font-medium text-neutral-300 mb-1">No context yet</p>
+                  <p className="text-xs text-neutral-500">
+                    Ask a question to build your context graph
+                  </p>
+                </motion.div>
+              ) : (
+                <>
+                  {/* Statistics Overview */}
+                  {context.statistics && (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -644,6 +661,8 @@ export function ContextPanel({ context }: ContextPanelProps) {
                     ))}
                   </ul>
                 </motion.div>
+              )}
+                </>
               )}
             </div>
           </ScrollArea>

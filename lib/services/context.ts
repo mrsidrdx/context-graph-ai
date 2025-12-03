@@ -35,123 +35,7 @@ export async function getUserContext(
 }
 
 function buildContextQuery(depth: 1 | 2 | 3): string {
-  if (depth === 1) {
-    return `
-      MATCH (u:User {id: $userId})
-      OPTIONAL MATCH (u)-[r1:INTERESTED_IN]->(t:Topic)
-      WITH u, t, r1.strength as topic_strength
-      ORDER BY topic_strength DESC
-      LIMIT 5
-      
-      WITH u, collect(DISTINCT {
-        id: t.id,
-        labels: labels(t),
-        properties: properties(t)
-      }) as topics
-      
-      OPTIONAL MATCH (u)-[:OWNS]->(d:Document)
-      WHERE d.updated_at > datetime() - duration('P30D')
-      WITH u, topics, collect(DISTINCT {
-        id: d.id,
-        labels: labels(d),
-        properties: properties(d)
-      })[..10] as documents
-      
-      OPTIONAL MATCH (u)-[wp:WORKING_ON]->(p:Project)
-      WHERE p.status = 'active'
-      WITH u, topics, documents, collect(DISTINCT {
-        id: p.id,
-        labels: labels(p),
-        properties: properties(p),
-        role: wp.role
-      }) as projects
-      
-      RETURN {
-        nodes: [{id: u.id, labels: labels(u), properties: properties(u)}] + topics + documents + projects,
-        relationships: []
-      } as result
-    `;
-  }
-
-  if (depth === 2) {
-    return `
-      MATCH (u:User {id: $userId})
-      OPTIONAL MATCH (u)-[r1:INTERESTED_IN]->(t:Topic)
-      WITH u, t, r1.strength as topic_strength
-      ORDER BY topic_strength DESC
-      LIMIT 5
-      
-      WITH u, collect(DISTINCT {
-        id: t.id,
-        labels: labels(t),
-        properties: properties(t)
-      }) as topics
-      
-      OPTIONAL MATCH (u)-[:OWNS]->(d:Document)
-      WHERE d.updated_at > datetime() - duration('P30D')
-      WITH u, topics, collect(DISTINCT {
-        id: d.id,
-        labels: labels(d),
-        properties: properties(d)
-      })[..10] as documents
-      
-      OPTIONAL MATCH (u)-[wp:WORKING_ON]->(p:Project)
-      WHERE p.status = 'active'
-      WITH u, topics, documents, collect(DISTINCT {
-        id: p.id,
-        labels: labels(p),
-        properties: properties(p),
-        role: wp.role
-      }) as projects
-      
-      WITH u, topics, documents, projects
-      OPTIONAL MATCH (doc:Document)-[tw:TAGGED_WITH]->(t2:Topic)
-      WHERE doc.id IN [d.id | d IN documents]
-      WITH u, topics, documents, projects, doc,
-           collect(DISTINCT {
-             id: t2.id,
-             labels: labels(t2),
-             properties: properties(t2)
-           }) as allRelatedTopics,
-           collect(DISTINCT {
-             startNodeId: doc.id,
-             endNodeId: t2.id,
-             type: 'TAGGED_WITH',
-             properties: properties(tw)
-           }) as tagRelationships
-      
-      WITH u, topics, documents, projects,
-           collect(DISTINCT allRelatedTopics) as relatedTopicsCollection,
-           collect(DISTINCT tagRelationships) as tagRelationshipsCollection
-      
-      OPTIONAL MATCH (proj:Project)-[uses:USES]->(c:Concept)
-      WHERE proj.id IN [p.id | p IN projects]
-      WITH u, topics, documents, projects, relatedTopicsCollection, tagRelationshipsCollection,
-           collect(DISTINCT {
-             id: c.id,
-             labels: labels(c),
-             properties: properties(c)
-           }) as concepts,
-           collect(DISTINCT {
-             startNodeId: proj.id,
-             endNodeId: c.id,
-             type: 'USES',
-             properties: properties(uses)
-           }) as usesRelationships
-      
-      WITH u, topics, documents, projects, 
-           [item IN relatedTopicsCollection WHERE item IS NOT NULL | item][0] as flatRelatedTopics,
-           [item IN tagRelationshipsCollection WHERE item IS NOT NULL | item][0] as flatTagRelationships,
-           concepts, usesRelationships
-      
-      RETURN {
-        nodes: [{id: u.id, labels: labels(u), properties: properties(u)}] + topics + documents + projects + coalesce(flatRelatedTopics, []) + concepts,
-        relationships: coalesce(flatTagRelationships, []) + usesRelationships
-      } as result
-    `;
-  }
-
-  return `
+  const baseQuery = `
     MATCH (u:User {id: $userId})
     OPTIONAL MATCH (u)-[r1:INTERESTED_IN]->(t:Topic)
     WITH u, t, r1.strength as topic_strength
@@ -180,10 +64,59 @@ function buildContextQuery(depth: 1 | 2 | 3): string {
       properties: properties(p),
       role: wp.role
     }) as projects
-    
-    WITH u, topics, documents, projects
-    OPTIONAL MATCH (doc:Document)-[tw:TAGGED_WITH]->(t2:Topic)
-    WHERE doc.id IN [d.id | d IN documents]
+  `;
+
+  if (depth === 1) {
+    return `
+      ${baseQuery}
+      RETURN {
+        nodes: [{id: u.id, labels: labels(u), properties: properties(u)}] + topics + documents + projects,
+        relationships: []
+      } as result
+    `;
+  }
+
+  if (depth === 2) {
+    return `
+      ${baseQuery}
+      OPTIONAL MATCH (u)-[:OWNS]->(d:Document)-[tw:TAGGED_WITH]->(t2:Topic)
+      WITH u, topics, documents, projects,
+           collect(DISTINCT {
+             id: t2.id,
+             labels: labels(t2),
+             properties: properties(t2)
+           }) as relatedTopics,
+           collect(DISTINCT {
+             startNodeId: d.id,
+             endNodeId: t2.id,
+             type: 'TAGGED_WITH',
+             properties: properties(tw)
+           }) as tagRelationships
+      
+      OPTIONAL MATCH (u)-[wp:WORKING_ON]->(p:Project)-[uses:USES]->(c:Concept)
+      WITH u, topics, documents, projects, relatedTopics, tagRelationships,
+           collect(DISTINCT {
+             id: c.id,
+             labels: labels(c),
+             properties: properties(c)
+           }) as concepts,
+           collect(DISTINCT {
+             startNodeId: p.id,
+             endNodeId: c.id,
+             type: 'USES',
+             properties: properties(uses)
+           }) as usesRelationships
+      
+      RETURN {
+        nodes: [{id: u.id, labels: labels(u), properties: properties(u)}] + topics + documents + projects + relatedTopics + concepts,
+        relationships: tagRelationships + usesRelationships
+      } as result
+    `;
+  }
+
+  return `
+    ${baseQuery}
+    OPTIONAL MATCH (u)-[:OWNS]->(d:Document)-[tw:TAGGED_WITH]->(t2:Topic)
     WITH u, topics, documents, projects,
          collect(DISTINCT {
            id: t2.id,
@@ -191,14 +124,13 @@ function buildContextQuery(depth: 1 | 2 | 3): string {
            properties: properties(t2)
          }) as relatedTopics,
          collect(DISTINCT {
-           startNodeId: doc.id,
+           startNodeId: d.id,
            endNodeId: t2.id,
            type: 'TAGGED_WITH',
            properties: properties(tw)
          }) as tagRelationships
     
-    OPTIONAL MATCH (proj:Project)-[uses:USES]->(c:Concept)
-    WHERE proj.id IN [p.id | p IN projects]
+    OPTIONAL MATCH (u)-[wp:WORKING_ON]->(p:Project)-[uses:USES]->(c:Concept)
     WITH u, topics, documents, projects, relatedTopics, tagRelationships,
          collect(DISTINCT {
            id: c.id,
@@ -206,14 +138,14 @@ function buildContextQuery(depth: 1 | 2 | 3): string {
            properties: properties(c)
          }) as concepts,
          collect(DISTINCT {
-           startNodeId: proj.id,
+           startNodeId: p.id,
            endNodeId: c.id,
            type: 'USES',
            properties: properties(uses)
          }) as usesRelationships
     
-    OPTIONAL MATCH (con:Concept)-[po:PART_OF]->(t3:Topic)
-    WHERE con.id IN [c.id | c IN concepts]
+    OPTIONAL MATCH (c:Concept)-[po:PART_OF]->(t3:Topic)
+    WHERE c.id IN concepts
     WITH u, topics, documents, projects, relatedTopics, concepts, tagRelationships, usesRelationships,
          collect(DISTINCT {
            id: t3.id,
@@ -221,14 +153,14 @@ function buildContextQuery(depth: 1 | 2 | 3): string {
            properties: properties(t3)
          }) as conceptTopics,
          collect(DISTINCT {
-           startNodeId: con.id,
+           startNodeId: c.id,
            endNodeId: t3.id,
            type: 'PART_OF',
            properties: properties(po)
          }) as partOfRelationships
     
-    OPTIONAL MATCH (top:Topic)-[rt:RELATED_TO]->(t4:Topic)
-    WHERE top.id IN [t.id | t IN topics]
+    OPTIONAL MATCH (t:Topic)-[rt:RELATED_TO]->(t4:Topic)
+    WHERE t.id IN topics
     WITH u, topics, documents, projects, relatedTopics, concepts, conceptTopics, tagRelationships, usesRelationships, partOfRelationships,
          collect(DISTINCT {
            id: t4.id,
@@ -236,7 +168,7 @@ function buildContextQuery(depth: 1 | 2 | 3): string {
            properties: properties(t4)
          }) as linkedTopics,
          collect(DISTINCT {
-           startNodeId: top.id,
+           startNodeId: t.id,
            endNodeId: t4.id,
            type: 'RELATED_TO',
            properties: properties(rt)
