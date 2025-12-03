@@ -8,15 +8,23 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  ECR_REPOSITORY: context-ai-app
+  ECR_APP_REPOSITORY: context-ai-app
+  ECR_NEO4J_REPOSITORY: context-ai-neo4j
+  ECR_REDIS_REPOSITORY: context-ai-redis
+  ECR_MONGODB_REPOSITORY: context-ai-mongodb
   ECS_CLUSTER: context-ai-cluster
   ECS_SERVICE: context-ai-service
   ECS_TASK_DEFINITION: context-ai-app
+
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
   deploy:
     name: Build and Deploy
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout code
@@ -28,54 +36,132 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true
 
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and push Docker image
-        id: build-image
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push App Docker image
+        id: build-app
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          # Build the Docker image for linux/amd64 platform
-          docker build --platform linux/amd64 -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          echo "Building app image..."
+          docker buildx build \
+            --platform linux/amd64 \
+            --cache-from $ECR_REGISTRY/$ECR_APP_REPOSITORY:latest \
+            --cache-to type=inline \
+            --tag $ECR_REGISTRY/$ECR_APP_REPOSITORY:$IMAGE_TAG \
+            --tag $ECR_REGISTRY/$ECR_APP_REPOSITORY:latest \
+            --push \
+            .
           
-          # Push both tagged and latest images to ECR
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          echo "app-image=$ECR_REGISTRY/$ECR_APP_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Verify database images in ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          echo "Verifying database images..."
           
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:latest" >> $GITHUB_OUTPUT
+          # Check if Neo4j image exists, pull and push if not
+          if ! aws ecr describe-images --repository-name $ECR_NEO4J_REPOSITORY --image-ids imageTag=5.15.0-community --region $AWS_REGION 2>/dev/null; then
+            echo "Pulling and pushing Neo4j image..."
+            docker pull neo4j:5.15.0-community
+            docker tag neo4j:5.15.0-community $ECR_REGISTRY/$ECR_NEO4J_REPOSITORY:5.15.0-community
+            docker tag neo4j:5.15.0-community $ECR_REGISTRY/$ECR_NEO4J_REPOSITORY:latest
+            docker push $ECR_REGISTRY/$ECR_NEO4J_REPOSITORY:5.15.0-community
+            docker push $ECR_REGISTRY/$ECR_NEO4J_REPOSITORY:latest
+          fi
+          
+          # Check if Redis image exists, pull and push if not
+          if ! aws ecr describe-images --repository-name $ECR_REDIS_REPOSITORY --image-ids imageTag=7.2-alpine --region $AWS_REGION 2>/dev/null; then
+            echo "Pulling and pushing Redis image..."
+            docker pull redis:7.2-alpine
+            docker tag redis:7.2-alpine $ECR_REGISTRY/$ECR_REDIS_REPOSITORY:7.2-alpine
+            docker tag redis:7.2-alpine $ECR_REGISTRY/$ECR_REDIS_REPOSITORY:latest
+            docker push $ECR_REGISTRY/$ECR_REDIS_REPOSITORY:7.2-alpine
+            docker push $ECR_REGISTRY/$ECR_REDIS_REPOSITORY:latest
+          fi
+          
+          # Check if MongoDB image exists, pull and push if not
+          if ! aws ecr describe-images --repository-name $ECR_MONGODB_REPOSITORY --image-ids imageTag=7.0 --region $AWS_REGION 2>/dev/null; then
+            echo "Pulling and pushing MongoDB image..."
+            docker pull mongo:7.0
+            docker tag mongo:7.0 $ECR_REGISTRY/$ECR_MONGODB_REPOSITORY:7.0
+            docker tag mongo:7.0 $ECR_REGISTRY/$ECR_MONGODB_REPOSITORY:latest
+            docker push $ECR_REGISTRY/$ECR_MONGODB_REPOSITORY:7.0
+            docker push $ECR_REGISTRY/$ECR_MONGODB_REPOSITORY:latest
+          fi
+          
+          echo "✅ All database images verified in ECR"
 
       - name: Get current task definition
         id: get-task-def
         run: |
+          echo "Fetching current task definition..."
           aws ecs describe-task-definition \
             --task-definition ${{ env.ECS_TASK_DEFINITION }} \
             --query 'taskDefinition' \
             --output json > task-definition.json
+          
+          echo "Current task definition revision: $(jq -r '.revision' task-definition.json)"
 
       - name: Update task definition with new image and environment variables
         id: update-task-def
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: latest
+          APP_IMAGE: ${{ steps.build-app.outputs.app-image }}
         run: |
-          # Create a new task definition with updated image and environment variables
-          jq --arg IMAGE "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" \
+          echo "Updating task definition..."
+          
+          # Validate required secrets
+          if [ -z "${{ secrets.NEO4J_PASSWORD }}" ]; then
+            echo "❌ Error: NEO4J_PASSWORD secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.ANTHROPIC_API_KEY }}" ]; then
+            echo "❌ Error: ANTHROPIC_API_KEY secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.JWT_SECRET }}" ]; then
+            echo "❌ Error: JWT_SECRET secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.ALB_DNS_NAME }}" ]; then
+            echo "❌ Error: ALB_DNS_NAME secret is not set"
+            exit 1
+          fi
+          
+          # Create new task definition with updated configuration
+          jq --arg APP_IMAGE "$APP_IMAGE" \
+             --arg NEO4J_IMAGE "$ECR_REGISTRY/$ECR_NEO4J_REPOSITORY:5.15.0-community" \
+             --arg REDIS_IMAGE "$ECR_REGISTRY/$ECR_REDIS_REPOSITORY:7.2-alpine" \
+             --arg MONGODB_IMAGE "$ECR_REGISTRY/$ECR_MONGODB_REPOSITORY:7.0" \
              --arg NEO4J_PASSWORD "${{ secrets.NEO4J_PASSWORD }}" \
              --arg ANTHROPIC_API_KEY "${{ secrets.ANTHROPIC_API_KEY }}" \
              --arg JWT_SECRET "${{ secrets.JWT_SECRET }}" \
              --arg ALB_DNS "${{ secrets.ALB_DNS_NAME }}" \
              '
              # Remove fields that cannot be in RegisterTaskDefinition
-             del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy) |
-             # Update the app container
+             del(
+               .taskDefinitionArn,
+               .revision,
+               .status,
+               .requiresAttributes,
+               .compatibilities,
+               .registeredAt,
+               .registeredBy
+             ) |
+             # Update all container images and app environment variables
              .containerDefinitions |= map(
                if .name == "app" then
-                 .image = $IMAGE |
+                 .image = $APP_IMAGE |
                  .environment = [
                    {name: "NODE_ENV", value: "production"},
                    {name: "NEO4J_URI", value: "neo4j://localhost:7687"},
@@ -87,39 +173,161 @@ jobs:
                    {name: "JWT_SECRET", value: $JWT_SECRET},
                    {name: "NEXT_PUBLIC_APP_URL", value: ("http://" + $ALB_DNS)}
                  ]
+               elif .name == "neo4j" then
+                 .image = $NEO4J_IMAGE
+               elif .name == "redis" then
+                 .image = $REDIS_IMAGE
+               elif .name == "mongodb" then
+                 .image = $MONGODB_IMAGE
                else
                  .
                end
              )
              ' task-definition.json > new-task-definition.json
           
-          cat new-task-definition.json
+          echo "✅ Task definition updated"
+          echo "Container images:"
+          jq -r '.containerDefinitions[] | "  - \(.name): \(.image)"' new-task-definition.json
 
       - name: Register new task definition
         id: register-task-def
         run: |
+          echo "Registering new task definition..."
           TASK_DEF_ARN=$(aws ecs register-task-definition \
             --cli-input-json file://new-task-definition.json \
             --query 'taskDefinition.taskDefinitionArn' \
             --output text)
+          
+          TASK_DEF_REVISION=$(echo $TASK_DEF_ARN | rev | cut -d':' -f1 | rev)
+          
           echo "task-definition-arn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
+          echo "✅ Registered task definition: ${{ env.ECS_TASK_DEFINITION }}:$TASK_DEF_REVISION"
 
       - name: Update ECS service
+        id: update-service
         run: |
+          echo "Updating ECS service..."
           aws ecs update-service \
             --cluster ${{ env.ECS_CLUSTER }} \
             --service ${{ env.ECS_SERVICE }} \
             --task-definition ${{ steps.register-task-def.outputs.task-definition-arn }} \
-            --force-new-deployment
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }}
+          
+          echo "✅ ECS service update initiated"
 
       - name: Wait for service to stabilize
+        id: wait-service
         run: |
-          echo "Waiting for ECS service to stabilize..."
-          aws ecs wait services-stable \
-            --cluster ${{ env.ECS_CLUSTER }} \
-            --services ${{ env.ECS_SERVICE }}
+          echo "⏳ Waiting for ECS service to stabilize (this may take 5-10 minutes)..."
+          
+          # Set timeout (20 minutes)
+          TIMEOUT=1200
+          START_TIME=$(date +%s)
+          
+          while true; do
+            # Check service status
+            SERVICE_STATUS=$(aws ecs describe-services \
+              --cluster ${{ env.ECS_CLUSTER }} \
+              --services ${{ env.ECS_SERVICE }} \
+              --region ${{ env.AWS_REGION }} \
+              --query 'services[0].[runningCount,desiredCount,deployments[?status==`PRIMARY`].rolloutState]' \
+              --output json)
+            
+            RUNNING=$(echo $SERVICE_STATUS | jq -r '.[0]')
+            DESIRED=$(echo $SERVICE_STATUS | jq -r '.[1]')
+            ROLLOUT_STATE=$(echo $SERVICE_STATUS | jq -r '.[2][0]')
+            
+            echo "Status: $RUNNING/$DESIRED running, Rollout: $ROLLOUT_STATE"
+            
+            # Check if stabilized
+            if [ "$RUNNING" == "$DESIRED" ] && [ "$ROLLOUT_STATE" == "COMPLETED" ]; then
+              echo "✅ Service stabilized successfully"
+              break
+            fi
+            
+            # Check for failed deployment
+            if [ "$ROLLOUT_STATE" == "FAILED" ]; then
+              echo "❌ Deployment failed"
+              aws ecs describe-services \
+                --cluster ${{ env.ECS_CLUSTER }} \
+                --services ${{ env.ECS_SERVICE }} \
+                --region ${{ env.AWS_REGION }} \
+                --query 'services[0].events[:5]'
+              exit 1
+            fi
+            
+            # Check timeout
+            CURRENT_TIME=$(date +%s)
+            ELAPSED=$((CURRENT_TIME - START_TIME))
+            if [ $ELAPSED -gt $TIMEOUT ]; then
+              echo "❌ Timeout waiting for service to stabilize"
+              exit 1
+            fi
+            
+            sleep 30
+          done
 
-      - name: Deployment complete
+      - name: Verify deployment
         run: |
+          echo "🔍 Verifying deployment..."
+          
+          # Get task details
+          TASK_ARN=$(aws ecs list-tasks \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service-name ${{ env.ECS_SERVICE }} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'taskArns[0]' \
+            --output text)
+          
+          echo "Task ARN: $TASK_ARN"
+          
+          # Check container health
+          CONTAINER_STATUS=$(aws ecs describe-tasks \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --tasks $TASK_ARN \
+            --region ${{ env.AWS_REGION }} \
+            --query 'tasks[0].containers[*].[name,lastStatus,healthStatus,exitCode]' \
+            --output json)
+          
+          echo "Container Status:"
+          echo "$CONTAINER_STATUS" | jq -r '.[] | "  - \(.[0]): \(.[1]) (Health: \(.[2] // "N/A"), Exit: \(.[3] // "N/A"))"'
+          
+          # Check for any stopped containers
+          STOPPED_COUNT=$(echo "$CONTAINER_STATUS" | jq -r '.[] | select(.[1] == "STOPPED") | .[0]' | wc -l)
+          if [ $STOPPED_COUNT -gt 0 ]; then
+            echo "❌ Warning: Some containers are stopped"
+            exit 1
+          fi
+          
+          echo "✅ All containers are running"
+
+      - name: Get service endpoint
+        run: |
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "✅ Deployment completed successfully!"
-          echo "Application URL: http://${{ secrets.ALB_DNS_NAME }}"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "📍 Application URL: http://${{ secrets.ALB_DNS_NAME }}"
+          echo "🔧 ECS Cluster: ${{ env.ECS_CLUSTER }}"
+          echo "🚀 ECS Service: ${{ env.ECS_SERVICE }}"
+          echo "📦 Task Definition: ${{ steps.register-task-def.outputs.task-definition-arn }}"
+          echo "🆔 Commit SHA: ${{ github.sha }}"
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          
+      - name: Post-deployment health check
+        continue-on-error: true
+        run: |
+          echo "🏥 Running health check..."
+          sleep 30
+          
+          HEALTH_URL="http://${{ secrets.ALB_DNS_NAME }}/api/auth/me"
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" $HEALTH_URL || echo "000")
+          
+          if [ "$HTTP_CODE" == "401" ] || [ "$HTTP_CODE" == "200" ]; then
+            echo "✅ Health check passed (HTTP $HTTP_CODE - expected for auth endpoint)"
+          else
+            echo "⚠️  Health check returned HTTP $HTTP_CODE (service may still be initializing)"
+          fi
