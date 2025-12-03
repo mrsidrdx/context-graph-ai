@@ -1,0 +1,99 @@
+{
+  "documents": [
+    {
+      "title": "Transformer Architecture Analysis",
+      "content": "Multi-head attention mechanism allows parallel processing of different representation subspaces. Positional encoding addresses the lack of inherent sequence information. Key innovation: self-attention scales better than RNNs for long sequences. Current research focus: efficient attention mechanisms (linear attention, sparse attention).",
+      "docType": "note",
+      "topics": ["Deep Learning", "NLP", "Transformers"],
+      "createdAt": "2024-11-10T11:20:00Z"
+    },
+    {
+      "title": "Reinforcement Learning from Human Feedback (RLHF) Paper Review",
+      "content": "RLHF combines supervised learning with reinforcement learning to align LLM outputs with human preferences. Process: 1) Supervised fine-tuning on demonstration data, 2) Train reward model on comparison data, 3) Optimize policy using PPO against reward model. Key challenge: reward model accuracy and distributional shift.",
+      "docType": "research",
+      "topics": ["Reinforcement Learning", "LLMs", "AI Alignment"],
+      "createdAt": "2024-11-28T13:45:00Z"
+    },
+    {
+      "title": "Scaling Laws for Neural Language Models",
+      "content": "Performance scales predictably with model size, dataset size, and compute. Power law relationships observed across orders of magnitude. Optimal allocation: balanced scaling of model and data. Diminishing returns suggest need for architectural innovations beyond pure scaling.",
+      "docType": "article",
+      "topics": ["Deep Learning", "LLMs", "Research Methodology"],
+      "createdAt": "2024-11-18T08:30:00Z"
+    }
+  ],
+  "topics": [
+    {
+      "name": "Deep Learning",
+      "description": "Neural networks with multiple layers for learning hierarchical representations",
+      "category": "AI/ML",
+      "relatedTopics": ["NLP", "Computer Vision", "Reinforcement Learning"]
+    },
+    {
+      "name": "LLMs",
+      "description": "Large Language Models - neural networks trained on vast text corpora",
+      "category": "AI/ML",
+      "relatedTopics": ["Deep Learning", "NLP", "AI Alignment"]
+    },
+    {
+      "name": "AI Alignment",
+      "description": "Ensuring AI systems behave according to human values and intentions",
+      "category": "AI Safety",
+      "relatedTopics": ["Reinforcement Learning", "LLMs"]
+    }
+  ],
+  "projects": [
+    {
+      "name": "Efficient Attention Mechanisms",
+      "description": "Research on reducing computational complexity of attention from O(n²) to O(n log n) or O(n)",
+      "status": "active",
+      "startDate": "2024-09-15T00:00:00Z",
+      "concepts": ["Self-Attention", "Algorithmic Efficiency", "Approximation Methods"],
+      "role": "Principal Investigator"
+    },
+    {
+      "name": "Multimodal Foundation Models",
+      "description": "Developing unified architecture for processing text, images, and audio",
+      "status": "active",
+      "startDate": "2024-10-20T00:00:00Z",
+      "concepts": ["Cross-Modal Learning", "Contrastive Learning", "Transfer Learning"]
+    }
+  ],
+  "concepts": [
+    {
+      "name": "Self-Attention",
+      "definition": "Mechanism that computes relationships between all positions in a sequence to generate contextualized representations",
+      "importanceScore": 0.95,
+      "topics": ["Deep Learning", "Transformers"]
+    },
+    {
+      "name": "Contrastive Learning",
+      "definition": "Learning representations by contrasting positive pairs against negative examples",
+      "importanceScore": 0.88,
+      "topics": ["Deep Learning", "LLMs"]
+    },
+    {
+      "name": "Transfer Learning",
+      "definition": "Reusing knowledge from pre-trained models for new tasks with limited data",
+      "importanceScore": 0.9,
+      "topics": ["Deep Learning", "LLMs"]
+    }
+  ],
+  "userInterests": [
+    {
+      "topicName": "Deep Learning",
+      "strength": 0.98,
+      "lastAccessed": "2024-12-01T10:00:00Z"
+    },
+    {
+      "topicName": "LLMs",
+      "strength": 0.95,
+      "lastAccessed": "2024-11-28T13:45:00Z"
+    },
+    {
+      "topicName": "AI Alignment",
+      "strength": 0.85,
+      "lastAccessed": "2024-11-28T13:45:00Z"
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+aws_region         = "us-east-1"
+project_name       = "context-ai"
+neo4j_password     = "your-secure-neo4j-password"
+anthropic_api_key  = "sk-ant-your-api-key"
+jwt_secret         = "your-super-secret-jwt-key-min-32-chars"

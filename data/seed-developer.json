@@ -1,0 +1,99 @@
+{
+  "documents": [
+    {
+      "title": "System Design Notes - Microservices",
+      "content": "Key principles for microservice architecture: 1) Single responsibility per service, 2) Independent deployment, 3) Decentralized data management. Consider using event-driven communication for loose coupling. Service mesh like Istio can handle cross-cutting concerns.",
+      "docType": "note",
+      "topics": ["System Design", "Microservices", "Architecture"],
+      "createdAt": "2024-11-15T10:30:00Z"
+    },
+    {
+      "title": "Kubernetes Best Practices",
+      "content": "Resource limits are crucial for cluster stability. Always set CPU/memory requests and limits. Use namespaces for environment separation. Implement health checks (liveness and readiness probes). Consider using Horizontal Pod Autoscaler for dynamic scaling.",
+      "docType": "reference",
+      "topics": ["Kubernetes", "DevOps", "Cloud Infrastructure"],
+      "createdAt": "2024-11-20T14:22:00Z"
+    },
+    {
+      "title": "Database Sharding Strategy Research",
+      "content": "Analyzed various sharding approaches for our user database. Hash-based sharding provides even distribution but makes range queries difficult. Range-based sharding maintains query efficiency but requires careful key design. Recommendation: Use composite sharding key (user_region + user_id) for our use case.",
+      "docType": "research",
+      "topics": ["Databases", "Scalability", "System Design"],
+      "createdAt": "2024-12-01T09:15:00Z"
+    }
+  ],
+  "topics": [
+    {
+      "name": "System Design",
+      "description": "Architectural patterns and principles for building scalable systems",
+      "category": "Engineering",
+      "relatedTopics": ["Microservices", "Scalability", "Databases"]
+    },
+    {
+      "name": "Kubernetes",
+      "description": "Container orchestration platform",
+      "category": "DevOps",
+      "relatedTopics": ["Cloud Infrastructure", "Microservices"]
+    },
+    {
+      "name": "Databases",
+      "description": "Data storage systems and optimization techniques",
+      "category": "Engineering",
+      "relatedTopics": ["Scalability", "System Design"]
+    }
+  ],
+  "projects": [
+    {
+      "name": "Payment Service Redesign",
+      "description": "Refactoring monolithic payment system into microservices architecture with improved fault tolerance and scalability",
+      "status": "active",
+      "startDate": "2024-10-01T00:00:00Z",
+      "concepts": ["Event Sourcing", "SAGA Pattern", "Circuit Breaker"],
+      "role": "Lead Engineer"
+    },
+    {
+      "name": "Infrastructure Migration to Kubernetes",
+      "description": "Migrating legacy VM-based infrastructure to Kubernetes clusters with zero-downtime deployment",
+      "status": "active",
+      "startDate": "2024-11-01T00:00:00Z",
+      "concepts": ["Container Orchestration", "Blue-Green Deployment", "Service Mesh"]
+    }
+  ],
+  "concepts": [
+    {
+      "name": "Event Sourcing",
+      "definition": "Pattern where state changes are stored as a sequence of events rather than just the current state",
+      "importanceScore": 0.85,
+      "topics": ["System Design", "Microservices"]
+    },
+    {
+      "name": "Circuit Breaker",
+      "definition": "Design pattern that prevents cascading failures by detecting failures and encapsulating logic to prevent repeated failed calls",
+      "importanceScore": 0.9,
+      "topics": ["System Design", "Microservices"]
+    },
+    {
+      "name": "Container Orchestration",
+      "definition": "Automated management of containerized applications including deployment, scaling, and networking",
+      "importanceScore": 0.8,
+      "topics": ["Kubernetes", "DevOps"]
+    }
+  ],
+  "userInterests": [
+    {
+      "topicName": "System Design",
+      "strength": 0.95,
+      "lastAccessed": "2024-12-01T09:15:00Z"
+    },
+    {
+      "topicName": "Kubernetes",
+      "strength": 0.88,
+      "lastAccessed": "2024-11-25T16:30:00Z"
+    },
+    {
+      "topicName": "Databases",
+      "strength": 0.82,
+      "lastAccessed": "2024-12-01T09:15:00Z"
+    }
+  ]
+}

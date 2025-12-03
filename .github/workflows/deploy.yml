@@ -1,0 +1,125 @@
+name: Deploy to AWS ECS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: context-ai-app
+  ECS_CLUSTER: context-ai-cluster
+  ECS_SERVICE: context-ai-service
+  ECS_TASK_DEFINITION: context-ai-app
+
+jobs:
+  deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Docker image
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          # Build the Docker image for linux/amd64 platform
+          docker build --platform linux/amd64 -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          
+          # Push both tagged and latest images to ECR
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:latest" >> $GITHUB_OUTPUT
+
+      - name: Get current task definition
+        id: get-task-def
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition ${{ env.ECS_TASK_DEFINITION }} \
+            --query 'taskDefinition' \
+            --output json > task-definition.json
+
+      - name: Update task definition with new image and environment variables
+        id: update-task-def
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: latest
+        run: |
+          # Create a new task definition with updated image and environment variables
+          jq --arg IMAGE "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" \
+             --arg NEO4J_PASSWORD "${{ secrets.NEO4J_PASSWORD }}" \
+             --arg ANTHROPIC_API_KEY "${{ secrets.ANTHROPIC_API_KEY }}" \
+             --arg JWT_SECRET "${{ secrets.JWT_SECRET }}" \
+             --arg ALB_DNS "${{ secrets.ALB_DNS_NAME }}" \
+             '
+             # Remove fields that cannot be in RegisterTaskDefinition
+             del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy) |
+             # Update the app container
+             .containerDefinitions |= map(
+               if .name == "app" then
+                 .image = $IMAGE |
+                 .environment = [
+                   {name: "NODE_ENV", value: "production"},
+                   {name: "NEO4J_URI", value: "neo4j://localhost:7687"},
+                   {name: "NEO4J_USERNAME", value: "neo4j"},
+                   {name: "NEO4J_PASSWORD", value: $NEO4J_PASSWORD},
+                   {name: "REDIS_URL", value: "redis://localhost:6379"},
+                   {name: "MONGODB_URI", value: "mongodb://localhost:27017/context-ai"},
+                   {name: "ANTHROPIC_API_KEY", value: $ANTHROPIC_API_KEY},
+                   {name: "JWT_SECRET", value: $JWT_SECRET},
+                   {name: "NEXT_PUBLIC_APP_URL", value: ("http://" + $ALB_DNS)}
+                 ]
+               else
+                 .
+               end
+             )
+             ' task-definition.json > new-task-definition.json
+          
+          cat new-task-definition.json
+
+      - name: Register new task definition
+        id: register-task-def
+        run: |
+          TASK_DEF_ARN=$(aws ecs register-task-definition \
+            --cli-input-json file://new-task-definition.json \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+          echo "task-definition-arn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
+
+      - name: Update ECS service
+        run: |
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service ${{ env.ECS_SERVICE }} \
+            --task-definition ${{ steps.register-task-def.outputs.task-definition-arn }} \
+            --force-new-deployment
+
+      - name: Wait for service to stabilize
+        run: |
+          echo "Waiting for ECS service to stabilize..."
+          aws ecs wait services-stable \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --services ${{ env.ECS_SERVICE }}
+
+      - name: Deployment complete
+        run: |
+          echo "✅ Deployment completed successfully!"
+          echo "Application URL: http://${{ secrets.ALB_DNS_NAME }}"
