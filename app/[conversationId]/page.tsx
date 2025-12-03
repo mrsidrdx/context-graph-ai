@@ -17,7 +17,9 @@ export default function ConversationPage() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch('/api/auth/me');
+        const response = await fetch('/api/auth/me', {
+          credentials: 'include', // Ensure cookies are sent with cross-origin requests
+        });
         if (response.ok) {
           const data = await response.json();
           setUser(data.user);
@@ -42,7 +44,9 @@ export default function ConversationPage() {
       if (!user || !conversationId) return;
 
       try {
-        const response = await fetch(`/api/conversations/${conversationId}`);
+        const response = await fetch(`/api/conversations/${conversationId}`, {
+          credentials: 'include', // Ensure cookies are sent with cross-origin requests
+        });
         if (response.ok) {
           setConversationExists(true);
         } else if (response.status === 404) {

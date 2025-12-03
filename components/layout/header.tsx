@@ -26,7 +26,10 @@ export function Header() {
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include', // Ensure cookies are sent with cross-origin requests
+      });
       logout();
       clearMessages();
       router.push('/login');

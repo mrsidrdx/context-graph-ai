@@ -36,7 +36,9 @@ export function ChatSidebar() {
   const fetchConversations = useCallback(async () => {
     if (!user) return;
     try {
-      const response = await fetch('/api/conversations');
+      const response = await fetch('/api/conversations', {
+        credentials: 'include', // Ensure cookies are sent with cross-origin requests
+      });
       if (response.ok) {
         const data = await response.json();
         setConversations(data.conversations.sort((a: ConversationSummary, b: ConversationSummary) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()));
@@ -70,7 +72,10 @@ export function ChatSidebar() {
     if (!confirmed) return;
     
     try {
-      const response = await fetch(`/api/conversations/${id}`, { method: 'DELETE' });
+      const response = await fetch(`/api/conversations/${id}`, {
+        method: 'DELETE',
+        credentials: 'include', // Ensure cookies are sent with cross-origin requests
+      });
       if (response.ok) {
         fetchConversations();
         if (currentConversationId === id) {
@@ -87,7 +92,10 @@ export function ChatSidebar() {
 
   const handleDownloadTemplate = async () => {
     try {
-      const response = await fetch('/api/seed/templates', { method: 'POST' });
+      const response = await fetch('/api/seed/templates', {
+        method: 'POST',
+        credentials: 'include', // Ensure cookies are sent with cross-origin requests
+      });
       if (response.ok) {
         const data = await response.json();
         const blob = new Blob([JSON.stringify(data.template, null, 2)], { type: 'application/json' });
@@ -114,6 +122,7 @@ export function ChatSidebar() {
       const response = await fetch('/api/seed', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Ensure cookies are sent with cross-origin requests
         body: JSON.stringify(data),
       });
 

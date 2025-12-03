@@ -201,10 +201,13 @@ cat > github-actions-policy.json <<EOF
         "ecr:InitiateLayerUpload",
         "ecr:UploadLayerPart",
         "ecr:CompleteLayerUpload",
+        "ecr:DescribeImages",
         "ecs:DescribeTaskDefinition",
         "ecs:RegisterTaskDefinition",
         "ecs:UpdateService",
         "ecs:DescribeServices",
+        "ecs:ListTasks",
+        "ecs:DescribeTasks",
         "iam:PassRole"
       ],
       "Resource": "*"

@@ -17,8 +17,8 @@ export async function createSession(payload: Omit<SessionPayload, 'expiresAt'>):
   const cookieStore = await cookies();
   cookieStore.set('session', token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    secure: true, // Must be true when using sameSite: 'none'
+    sameSite: 'none', // Allow cross-site requests (required for ALB with different DNS)
     expires: expiresAt,
     path: '/',
   });

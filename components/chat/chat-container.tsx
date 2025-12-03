@@ -46,7 +46,9 @@ export function ChatContainer({ conversationId }: ChatContainerProps) {
       if (!conversationId || !user) return;
 
       try {
-        const response = await fetch(`/api/conversations/${conversationId}`);
+        const response = await fetch(`/api/conversations/${conversationId}`, {
+          credentials: 'include', // Ensure cookies are sent with cross-origin requests
+        });
         if (response.ok) {
           const data = await response.json();
           const messages: Message[] = data.messages.map((m: IMessage) => ({
@@ -142,6 +144,7 @@ export function ChatContainer({ conversationId }: ChatContainerProps) {
         const createResponse = await fetch('/api/conversations', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include', // Ensure cookies are sent with cross-origin requests
           body: JSON.stringify({ title: content.slice(0, 50) + (content.length > 50 ? '...' : '') }),
         });
 
@@ -175,6 +178,7 @@ export function ChatContainer({ conversationId }: ChatContainerProps) {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Ensure cookies are sent with cross-origin requests
         body: JSON.stringify({ 
           message: content,
           conversationId: conversationId || currentConversationId 
